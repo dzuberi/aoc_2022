@@ -1,5 +1,8 @@
 use std::vec::Vec;
 use std::ptr;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::sync::Arc;
 
 fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
@@ -22,21 +25,20 @@ fn read_file() -> String {
 }
 
 #[derive(Debug)]
-struct TreeNode<'a>{
-    parent: *mut TreeNode<'a>,
-    children: Vec<*mut TreeNode<'a>>,
+struct TreeNode{
+    parent: Option<Arc<RefCell<TreeNode>>>,
+    children: Vec<Arc<RefCell<TreeNode>>>,
     size: i32,
     name: String,
+    t: String,
 }
 
-impl<'a> TreeNode<'a> {
-    fn add_child<'b>(&mut self, new_node : *mut TreeNode<'a>){
-        unsafe {
-            //(*new_node).parent = self;
-            ptr::copy(self, (*new_node).parent, 1);
-        }
+impl TreeNode{
+    fn add_child(&mut self, new_child : Arc<RefCell<TreeNode>>){
+        //let mut child_node = new_child.borrow_mut();
+
         self.children.push(
-            new_node
+            new_child
         );
     }
 
@@ -45,19 +47,16 @@ impl<'a> TreeNode<'a> {
     }
 }
 
-fn build_tree_from_contents(contents : &str) -> TreeNode {
-    let mut dummy = TreeNode {parent: ptr::null_mut(), children: Vec::<*mut TreeNode>::new(), size: 0, name:"dummy".to_string()};
+fn build_tree_from_contents(contents : &str) -> Arc<RefCell<TreeNode>> {
+    let dummy = Arc::new( RefCell::new(TreeNode {parent: None, children: Vec::<Arc<RefCell<TreeNode>>>::new(), size: 0, name:"dummy".to_string(), t:"dummy".to_string()} ) );
+    
+    
     let mut current_level = -1i32;
-    let mut parent : *mut TreeNode = &mut dummy;
+    let mut parent = dummy.clone();
     for line in contents.lines(){
-        unsafe {
-            //println!("parent : {:?},{}",parent, (*parent).name);
-            println!("parent : {:?}",parent);
-        }
+        println!("{line}");
         let level = line.find('-').unwrap() as i32;
-        //println!("{level}");
-        //let mut dash_split = line.split('-');
-        //dash_split.next();
+        println!("{level}, {current_level}");
         let name = line.split('-').nth(1).unwrap().split(' ').nth(1).unwrap();
         let info = line.split('(').nth(1).unwrap().split(')').nth(0).unwrap();
         let t = info.split(',').nth(0).unwrap().trim();
@@ -70,51 +69,150 @@ fn build_tree_from_contents(contents : &str) -> TreeNode {
                 sz = 0;
             }
         }
-        
+        /*
         if level == current_level {
-            unsafe {
-                parent = (*parent).parent;
-                println!("updating parent to {}", (*parent).name);
-            }
+            parent = parent.clone().borrow().parent.as_ref().unwrap().clone();
+
         }
-        else if level < current_level {
-            unsafe {
-                parent = (*(*parent).parent).parent;
-                println!("updating parent to {}", (*parent).name);
-            }
+        */
+        while level <= current_level {
+            parent = parent.clone().borrow().parent.as_ref().unwrap().clone();
+            current_level -= 1;
+
         }
-        
-        let mut new_child = TreeNode {parent: ptr::null_mut(), children: Vec::<*mut TreeNode>::new(), size: sz, name:name.to_string() };
-        unsafe {
-            print!("{} ", (*parent).name);
-            (*parent).add_child(&mut new_child);
-            println!("{:?}, {level}, {current_level}",&mut (*parent));
-        }
+        let new_child = Arc::new( RefCell::new(TreeNode {parent: Some(parent.clone()), children: Vec::<Arc<RefCell<TreeNode>>>::new(), size: sz, name:name.to_string(), t:t.to_string()} ) );
+        parent.borrow_mut().add_child(new_child.clone());
         current_level = level;
-        unsafe{
-            parent = *(*parent).children.last().unwrap();
-            println!(" new_parent: {}", (*parent).name);
+        parent = new_child.clone();
+        //print_tree(&dummy, 0);
+    }
+    
+    return dummy;
+}
+
+fn print_tree(head: &Arc<RefCell<TreeNode>>, level: u32) {
+    let name = &head.borrow().name;
+    let size = head.borrow().size;
+    let t = &head.borrow().t;
+    for i in 0..level{
+        print!(" ");
+    }
+    println!("{name}, {t}, {size}");
+    for child in head.borrow().children.iter(){
+        print_tree(child, level+1);
+    }
+}
+
+fn pop_size(head: &Arc<RefCell<TreeNode>>) -> i32 {
+    let mut size = 0;
+    {
+        let name = &head.borrow().name;
+        size = head.borrow().size.clone();
+        for child in head.borrow().children.iter(){
+            size += pop_size(child);
         }
     }
-    return dummy;
+    head.clone().borrow_mut().size = size;
+    return size;
+}
+
+fn do_part_1(head: &Arc<RefCell<TreeNode>>) -> i32 {
+    let mut total = 0;
+    {    
+        let t = &head.borrow().t;
+        let name = &head.borrow().name;
+        let size = head.borrow().size.clone();
+        for child in head.borrow().children.iter(){
+            total += do_part_1(child);
+        }
+        if t == "dir" && size <= 100000  {total += size};
+    }
+    return total;
+}
+
+/*
+fn do_part_2(head: &Arc<RefCell<TreeNode>>, smallest: u32) {
+    let mut total = 0;
+    {    
+        let t = &head.borrow().t;
+        let name = &head.borrow().name;
+        let size = head.borrow().size.clone();
+        for child in head.borrow().children.iter(){
+            total += do_part_1(child);
+        }
+        if t == "dir" && size >=   {total += size};
+    }
+    return total;
+}
+*/
+
+fn process_file_tree_string(contents: &str) {
+
+    let mut tree = build_tree_from_contents(&contents);
+    print_tree(&tree, 0);
+    pop_size(&tree);
+    print_tree(&tree, 0);
+    let part_1 = do_part_1(&tree);
+    println!("{part_1}");
+
+}
+
+fn convert_input(contents: &str) -> String {
+    let mut string = String::new();
+    let mut level = -1;
+    for line in contents.lines(){
+        let mut split = line.split(' ');
+        let mut cmd = "";
+        let first = split.next().unwrap();
+        let mut second = "";
+        match split.next(){
+            Some(s) => second=s,
+            None=>{},
+        }
+        let mut third = "";
+        match split.next(){
+            Some(s) => third=s,
+            None=>{},
+        }
+        if first.starts_with("$"){
+            cmd = second;
+        }
+        if cmd == "cd" {
+            if third.contains(".."){
+                level -= 1;
+            }
+            else {
+                level += 1;
+                for i in 0..level{
+                    string.push_str(" ");
+                }
+                string.push_str("- ");
+                string.push_str(third);
+                string.push_str(" (dir)\n");
+            }
+            //continue;
+        }
+        match first.parse::<i32>(){
+            Ok(s) => {
+                let level_inc = level+1;
+                for i in 0..level_inc{
+                    string.push_str(" ");
+                }
+                string.push_str("- ");
+                string.push_str(second);
+                string.push_str(" (file, size=");
+                string.push_str(first);
+                string.push_str(")\n");
+            }
+            Err(..) => {}
+        }
+        println!("first: {first}, second: {second}, third: {third}, level: {level}");
+    }
+    return string;
 }
 
 fn main() {
     let mut contents = read_file();
-
-    let mut tree = build_tree_from_contents(&contents);
-    /*
-    let mut tree = TreeNode { parent: ptr::null_mut(), children: Vec::<*mut TreeNode>::new(), size: 0};
-
-    let mut first_child = TreeNode{parent:ptr::null_mut(), children: Vec::<*mut TreeNode>::new(), size:0};
-    
-    tree.add_child(&mut first_child);    
-    
-    let mut second_child = TreeNode{parent:ptr::null_mut(), children: Vec::<*mut TreeNode>::new(), size:0};
-    
-    tree.add_child(&mut second_child);
-
-    
-    */
-    println!("{:?}",&mut tree);
+    let tree_string = convert_input(&contents);
+    process_file_tree_string(&tree_string);
 }
