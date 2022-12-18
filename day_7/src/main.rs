@@ -130,21 +130,22 @@ fn do_part_1(head: &Arc<RefCell<TreeNode>>) -> i32 {
     return total;
 }
 
-/*
-fn do_part_2(head: &Arc<RefCell<TreeNode>>, smallest: u32) {
-    let mut total = 0;
+
+fn do_part_2(head: &Arc<RefCell<TreeNode>>, result: i32, min_size: i32) -> i32 {
+    let mut retval = result;
     {    
         let t = &head.borrow().t;
         let name = &head.borrow().name;
         let size = head.borrow().size.clone();
+        if t.contains("dir") {println!("result: {result}, min_size: {min_size}, size:{size}");}
         for child in head.borrow().children.iter(){
-            total += do_part_1(child);
+            retval = do_part_2(child, retval, min_size);
         }
-        if t == "dir" && size >=   {total += size};
+        if t.contains( "dir") && size >= min_size && size < retval  {retval = size};
     }
-    return total;
+    return retval;
 }
-*/
+
 
 fn process_file_tree_string(contents: &str) {
 
@@ -153,7 +154,8 @@ fn process_file_tree_string(contents: &str) {
     pop_size(&tree);
     print_tree(&tree, 0);
     let part_1 = do_part_1(&tree);
-    println!("{part_1}");
+    let part_2 = do_part_2(&tree, tree.borrow().size, 30000000-(70000000-tree.borrow().size));
+    println!("part_1: {part_1}\npart_2: {part_2}");
 
 }
 
