@@ -47,35 +47,6 @@ fn get_elevation(c: &char) -> i32{
     new_c as i32 - 'a' as i32
 }
 
-fn get_length_to_path(location: (usize, usize), length: usize, vec: &Vec<Vec<char>>) -> usize{
-    let translation = [(-1,0), (1,0), (0,-1), (0, 1)];
-    let mut possible_paths : Vec<(char, usize, usize)> = Vec::<(char, usize, usize)>::new();
-    let mut ret_length = length;
-    let max = vec.len() * vec[0].len();
-    if length > max {return length};
-    let curr_c = vec[location.0][location.1];
-    let mut curr_elevation = 0;
-    if curr_c == 'S' {return length}
-    let mut min_length = max;
-    for i in 0..translation.len() {
-        let _new_x = location.0 as i32 + translation[i].0;
-        let _new_y = location.1 as i32 + translation[i].1;
-        let mut new_x : usize = 0;
-        let mut new_y : usize = 0;
-        if let Ok(u_new_x) = _new_x.try_into() {new_x = u_new_x} else {continue}
-        if let Ok(u_new_y) = _new_y.try_into() {new_y = u_new_y} else {continue}
-        if let Some(v) = vec.get(new_x) {
-            if let Some(c) = v.get(new_y) {
-                let elevation_diff = get_elevation(&curr_c) - get_elevation(c);
-                if elevation_diff > 1 {continue}
-                let child_length = get_length_to_path((new_x, new_y), length+1, vec);
-                if child_length < min_length {min_length = child_length};
-            }
-        }
-    }
-    return length + min_length
-}
-
 fn breadth_first_search(start: (usize, usize), end: (usize, usize), vec: &Vec<Vec<char>>) -> Option<usize> {
     let x = start.0;
     let y = start.1;
@@ -140,8 +111,8 @@ fn main() {
     //let part_1 = get_length_to_path(end_index, 0, &vec);
     //println!("part_1: {part_1}");
     let part_1_opt = breadth_first_search(start_index, end_index, &vec);
-    println!("{:?}",part_1_opt);
+    println!("part 1: {:?}",part_1_opt);
     
     let part_2 =part_2(&vec, end_index);
-    println!("{:?}",part_2)
+    println!("part 2: {:?}",part_2)
 }

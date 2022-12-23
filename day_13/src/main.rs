@@ -38,45 +38,21 @@ fn parse_input(contents: &str) {
         line.split(',')
             .for_each(|sub|
                 {
-                    println!(",: {sub}");
-                    if let Ok(i) = sub.parse::<i32>() {
-                        TreeNode::add_child_to_self(curr_node.clone(), TreeNode::get_new_tree(Element{is_int: true, val: i}));
+                    let removed_open = sub.trim().trim_start_matches('[');
+                    let removed_close = removed_open.trim_end_matches(']').trim();
+                    let num_open = sub.len() - removed_open.len();
+                    let num_close = sub.len() - removed_close.len() - num_open;
+                    for _ in 0..num_open {
+                        let new_node = TreeNode::get_new_tree(Element{is_int:false, val:0});
+                        TreeNode::add_child_to_self(curr_node.clone(), new_node.clone());                                 
+                        curr_node = new_node;
                     }
-                    else {
-                        dummy.borrow().print_whole_tree();
-                        // if sub.contains('['){
-                        sub.split('[')
-                            .filter(|s| s.trim() != "")
-                            .for_each(|sub1|
-                                {
-                                    println!("[: {sub1}");
-                                    if let Ok(i) = sub1.parse::<i32>() {
-                                        TreeNode::add_child_to_self(curr_node.clone(), TreeNode::get_new_tree(Element{is_int:true, val:i}));
-                                    }
-                                    else {
-                                        curr_node = TreeNode::get_new_tree(Element{is_int:false, val:0});
-                                        TreeNode::add_child_to_self(dummy.clone(), curr_node.clone());                                    
-                                        dummy.borrow().print_whole_tree();
-                                        //if sub1.contains(']'){
-                                        sub1.split(']')
-                                            .filter(|s| s.trim() != "")
-                                            .for_each(|sub2|
-                                                {
-                                                    println!("]: {sub2}");
-                                                    if let Ok(i) = sub2.parse::<i32>() {
-                                                        TreeNode::add_child_to_self(curr_node.clone(), TreeNode::get_new_tree(Element{is_int:true, val:i}));
-                                                    }
-                                                    else {
-                                                        curr_node = curr_node.clone().borrow_mut().parent.as_ref().unwrap().clone();
-                                                    }
-                                                dummy.borrow().print_whole_tree();
-                                                }
-                                            )//}
-                                    }
-                                }
-                            )//}
-                        }
-                    dummy.borrow().print_whole_tree();
+                    if let Ok(n) = removed_close.parse::<i32>() {
+                        TreeNode::add_child_to_self(curr_node.clone(), TreeNode::get_new_tree(Element{is_int:true, val:n}));
+                    }
+                    for _ in 0..num_close {
+                        curr_node = curr_node.clone().borrow_mut().parent.as_ref().unwrap().clone();
+                    }
                 }
 
             );
@@ -89,16 +65,4 @@ fn main() {
     let contents = read_file();
 
     parse_input(&contents);
-
-    let tree = TreeNode::get_new_tree(0i32);
-
-    TreeNode::add_child_to_self(tree.clone(), TreeNode::get_new_tree(1i32));
-    
-    println!("");
-    
-    tree.borrow().print_self();
-    
-    println!("");
-
-    tree.borrow().children[0].borrow().print_whole_tree();
 }
